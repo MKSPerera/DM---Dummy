@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "61535472161",
+    "project_id": "drivemate-88803",
+    "storage_bucket": "drivemate-88803.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:61535472161:android:fd2b20baf2f81158743160",
+        "android_client_info": {
+          "package_name": "com.example.test_08"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2yoHWxMJGDgPtcIC3Jx0DKSvLzUjYNRA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
