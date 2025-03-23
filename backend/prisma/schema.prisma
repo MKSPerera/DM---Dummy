@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+/*datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}*/
+
+ datasource db {
+   provider  = "postgresql"
+   url       = env("DATABASE_URL")
+   directUrl = env("DIRECT_URL")
+ }
+
+model Driver {
+  id            Int      @id @default(autoincrement())
+  firstName     String
+  lastName      String
+  email         String   @unique
+  password      String
+  contactNumber String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Vehicle Information
+  vehicleType     String // e.g., "Sedan", "SUV", "Van"
+  vehicleCapacity Int // Number of passengers the vehicle can accommodate
+  vehicleLicense  String // License plate number or unique vehicle identifier
+  fcmToken      String? 
+
+  // Relationships
+  availabilities Availability[] // One-to-many relationship with Availability model
+  jobs           Job[] // Jobs assigned to this driver
+  adminRelations AdminDriverRelation[] // Many-to-many relationship with Admins
+  driverRanking DriverRanking[] // One-to-one relationship with DriverRanking model
+  jobDriverAccess JobDriverAccess[] //Many-to-Many with Jobs
+  notifications Notification[] // Add this relation
+}
+
+model DriverRanking {
+  id Int @id @default(autoincrement())
+  driverId Int
+  workRate Float @default(0.0) // how many days he worked in a month 
+  feedbackRate Float @default(0.0) // how many feedback he got
+  cancellationRate Float @default(0.0) // how many times he cancelled the job
+  averageRate Float @default(0.0) // average rating he got
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver Driver @relation(fields: [driverId], references: [id])
+}
+
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  fcmToken  String?  // Add FCM token for admin
+
+  // Relationships
+  adminDriverRelations AdminDriverRelation[]
+  notifications       Notification[] // Add this relation
+}
+
+model AdminDriverRelation {
+  id        Int      @id @default(autoincrement())
+  adminId   Int // Foreign key linking to the Admin
+  driverId  Int // Foreign key linking to the Driver
+  isBlocked Boolean  @default(false) // Indicates if the Driver is blocked by the Admin
+  createdAt DateTime @default(now())
+
+  admin  Admin  @relation(fields: [adminId], references: [id])
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@unique([adminId, driverId]) // Ensure a unique relationship between Admin and Driver
+}
+
+model Job {
+  jobId              Int      @id @default(autoincrement())
+  clientName         String
+  nationality        String
+  numberOfPassengers Int
+  pickupLocation     String
+  startDate          DateTime // Start date and time of the job
+  endDate            DateTime // End date and time of the job
+  pickupTime         DateTime
+  distance           Float // Distance in miles/kilometers
+  paymentAmount      Float // Amount the driver will be paid
+  additionalDetails  String? // Optional field for extra information
+  postType           PostType
+  currentState       JobState @default(PENDING) // Current state of the job
+  jobCreatedAt       DateTime @default(now())
+
+  // Relationships
+  assignedDriverId Int? // Foreign key linking to the Driver who accepted the job
+  assignedDriver   Driver? @relation(fields: [assignedDriverId], references: [id])
+
+  availabilities Availability[] // Add this relation to fix the error
+  jobDriverAccess JobDriverAccess[] // New relation for private jobs
+  notifications    Notification[] // Add this relation
+}
+
+/**
+ * model Job {
+ * jobId            Int      @id @default(autoincrement())
+ * clientName       String
+ * nationality      String
+ * numberOfPassengers Int
+ * pickupLocation   String
+ * startDate        DateTime // Start date and time of the job
+ * endDate          DateTime // End date and time of the job
+ * pickupTime       DateTime
+ * distance         Float    // Distance in miles/kilometers
+ * paymentAmount    Float    // Amount the driver will be paid
+ * additionalDetails String? // Optional field for extra information
+ * currentState     JobState @default(PENDING) // Current state of the job
+ * jobCreatedAt     DateTime @default(now())
+ * // Relationships
+ * assignedDriverId Int? // Foreign key linking to the Driver who accepted the job
+ * assignedDriver   Driver? @relation(fields: [assignedDriverId], references: [id])
+ * }
+ */
+
+model Availability {
+  id        Int                @id @default(autoincrement())
+  driverId  Int // Foreign key linking to the Driver
+  jobId     Int? // Foreign key linking to the Job (can be null if not assigned)
+  startDate DateTime // Start date of availability
+  endDate   DateTime // End date of availability
+  status    AvailabilityStatus  // Available or Busy
+
+  driver Driver @relation(fields: [driverId], references: [id])
+  job    Job?   @relation(fields: [jobId], references: [jobId]) // Fix: Ensure Job has a relation field
+
+  @@unique([driverId, jobId]) // Ensure a unique job availability per driver
+}
+
+model JobDriverAccess {
+  id       Int @id @default(autoincrement())
+  jobId    Int
+  driverId Int
+
+  job    Job    @relation(fields: [jobId], references: [jobId])
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@unique([jobId, driverId]) // Ensures a driver can be assigned to a job only once
+}
+
+/**
+ * model Availability {
+ * id          Int      @id @default(autoincrement())
+ * driverId    Int      // Foreign key linking to the Driver
+ * startDate   DateTime // Start date of availability
+ * endDate     DateTime // End date of availability
+ * status      AvailabilityStatus @default(AVAILABLE) // Available or Busy
+ * driver      Driver   @relation(fields: [driverId], references: [id])
+ * }
+ */
+
+enum AvailabilityStatus {
+  BUSY
+  JOB
+}
+
+enum JobState {
+  PENDING
+  ACCEPTED
+  ONGOING
+  COMPLETED
+}
+
+enum PostType {
+  PUBLIC
+  PRIVATE
+}
+
+enum NotificationType {
+  ADMIN_ONLY      // Notifications only for admins
+  DRIVER_ONLY     // Notifications only for drivers
+  BOTH            // Notifications for both admins and drivers
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  title       String
+  message     String
+  type        NotificationType
+  createdAt   DateTime         @default(now())
+  
+  // For driver-specific notifications
+  driverId    Int?
+  driver      Driver?          @relation(fields: [driverId], references: [id])
+  
+  // For admin-specific notifications
+  adminId     Int?
+  admin       Admin?           @relation(fields: [adminId], references: [id])
+  
+  status      NotificationStatus @default(UNREAD)
+  
+  // Optional: Reference to a job if the notification is related to one
+  jobId       Int?
+  job         Job?             @relation(fields: [jobId], references: [jobId])
+}
